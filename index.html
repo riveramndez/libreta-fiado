@@ -1,0 +1,1484 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Libreta de Fiado</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#1565c0">
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --azul:#1565c0; --azul-d:#0d47a1;
+  --verde:#2e7d32; --rojo:#c62828;
+  --gris-bg:#f0f1f3; --borde:#dde0e4; --texto:#222;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{margin:0;font-family:-apple-system,Roboto,Segoe UI,Arial,sans-serif;background:var(--gris-bg);color:var(--texto);}
+input,select,textarea{font-size:16px;font-family:inherit;}
+button{font-family:inherit;}
+#app{max-width:520px;margin:0 auto;background:var(--gris-bg);min-height:100vh;display:flex;flex-direction:column;}
+
+header{
+  background:var(--azul);color:#fff;padding:14px 16px;display:flex;
+  align-items:center;justify-content:space-between;flex:0 0 auto;
+  position:sticky;top:0;z-index:50;
+}
+header h1{margin:0;font-size:19px;font-weight:700;}
+header .sub{font-size:11px;opacity:.85;}
+.icon-btn{background:none;border:none;color:#fff;font-size:21px;cursor:pointer;padding:4px 7px;position:relative;}
+.badge-noti{position:absolute;top:2px;right:2px;width:9px;height:9px;border-radius:50%;background:#ffeb3b;border:1.5px solid var(--azul);}
+
+.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 12px;background:var(--azul);flex:0 0 auto;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{flex:0 0 auto;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.5);
+  border-radius:20px;padding:7px 14px;font-size:13px;cursor:pointer;white-space:nowrap;}
+.chip.active{background:#fff;color:var(--azul);font-weight:700;}
+
+#lista-clientes{flex:1;overflow-y:auto;padding:10px 12px 90px;}
+.cliente-card{
+  background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:8px;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);display:flex;align-items:center;gap:10px;cursor:pointer;
+}
+.cliente-avatar{width:40px;height:40px;border-radius:50%;background:var(--azul);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex:0 0 auto;}
+.cliente-info{flex:1;min-width:0;}
+.cliente-info .nom{font-weight:600;font-size:15px;}
+.cliente-info .cat{font-size:12px;color:#888;}
+.cliente-saldo{text-align:right;font-weight:700;font-size:14px;white-space:nowrap;}
+.cliente-saldo .lbl{display:block;font-size:10px;font-weight:400;color:#888;}
+
+.empty-msg{text-align:center;color:#999;font-size:14px;padding:40px 10px;}
+
+.summary-bar{display:flex;background:#fff;border-top:1px solid var(--borde);flex:0 0 auto;}
+.summary-bar div{flex:1;text-align:center;padding:8px 4px;border-right:1px solid var(--borde);}
+.summary-bar div:last-child{border-right:none;}
+.summary-bar .lbl{font-size:10px;color:#777;display:block;}
+.summary-bar .val{font-weight:700;font-size:14px;}
+
+.actions-bar{display:flex;gap:8px;padding:10px 12px;background:var(--gris-bg);flex:0 0 auto;}
+.actions-bar button{flex:1;border:none;border-radius:8px;padding:12px 6px;font-size:14px;font-weight:600;cursor:pointer;}
+.btn-outline{background:#e3eafc;color:var(--azul);}
+.btn-fill{background:var(--azul);color:#fff;}
+
+nav.bottom{display:flex;background:#fff;border-top:1px solid var(--borde);flex:0 0 auto;}
+nav.bottom button{flex:1;background:none;border:none;padding:8px 2px 10px;font-size:10.5px;color:#777;cursor:pointer;}
+nav.bottom button .ic{display:block;font-size:19px;margin-bottom:2px;}
+nav.bottom button.active{color:var(--azul);font-weight:700;}
+
+.screen{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.screen.active{display:flex;}
+
+/* overlays full screen */
+#overlay-cliente, #overlay-mov, #overlay-nota, #overlay-transferir, #overlay-recordatorios,
+#overlay-catalogo, #overlay-add-cliente{
+  position:fixed;inset:0;background:var(--gris-bg);z-index:100;display:none;flex-direction:column;
+}
+#overlay-cliente.active, #overlay-mov.active, #overlay-nota.active, #overlay-transferir.active,
+#overlay-recordatorios.active, #overlay-catalogo.active, #overlay-add-cliente.active{display:flex;}
+.ov-header{background:var(--azul);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:14px;flex:0 0 auto;}
+#overlay-mov.recibido .ov-header{background:var(--verde);}
+#overlay-mov.entrego .ov-header{background:var(--rojo);}
+.ov-header button{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0;}
+.ov-header h2{margin:0;font-size:17px;font-weight:700;flex:1;}
+.ov-body{flex:1;overflow-y:auto;padding:14px;}
+.ov-footer{display:flex;gap:8px;padding:10px 14px;background:#fff;border-top:1px solid var(--borde);flex:0 0 auto;}
+.ov-footer button{flex:1;border:none;border-radius:8px;padding:12px 6px;font-size:14px;font-weight:700;cursor:pointer;}
+
+.card{background:#fff;border-radius:10px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.small{font-size:12px;color:#777;display:block;margin-bottom:4px;}
+input[type=text],input[type=number],input[type=tel],input[type=date],input[type=time],textarea,select{
+  width:100%;padding:11px 12px;border:1px solid var(--borde);border-radius:8px;margin-bottom:10px;background:#fff;
+}
+textarea{resize:vertical;min-height:50px;}
+.field-icon-wrap{position:relative;}
+.field-icon-wrap input{padding-right:42px;}
+.field-icon-wrap .fi-btn{position:absolute;right:4px;top:4px;bottom:4px;width:36px;background:none;border:none;
+  color:var(--azul);font-size:18px;cursor:pointer;}
+.toggle-group{display:flex;gap:10px;margin:8px 0 12px;}
+.toggle-group label{display:flex;align-items:center;gap:5px;font-size:14px;}
+.row2{display:flex;gap:10px;}
+.row2>div{flex:1;}
+.amt-field{border:1.5px solid var(--borde);border-radius:8px;padding:12px;margin-bottom:10px;position:relative;cursor:text;}
+.amt-field .lab{font-size:14px;font-weight:600;}
+.amt-field.entrego .lab{color:var(--rojo);}
+.amt-field.recibido .lab{color:var(--verde);}
+.amt-field input{border:none;padding:0;margin:0;font-size:20px;font-weight:700;width:calc(100% - 40px);display:inline-block;}
+.amt-field .calc-ic{position:absolute;right:10px;top:10px;font-size:20px;color:var(--azul);cursor:pointer;background:none;border:none;}
+.two-btn{display:flex;gap:8px;}
+.two-btn button{flex:1;border:1px solid var(--borde);background:#fff;border-radius:8px;padding:11px 4px;font-size:13px;cursor:pointer;color:#444;}
+
+/* modals */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.modal-bg.active{display:flex;}
+.modal-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:520px;max-height:85vh;
+  overflow-y:auto;padding:18px;}
+.modal-sheet h3{margin:0 0 12px;font-size:17px;}
+.pick-row{padding:12px 6px;border-bottom:1px solid #eee;cursor:pointer;font-size:15px;display:flex;justify-content:space-between;align-items:center;}
+.pick-row .sub{font-size:12px;color:#888;}
+.add-nuevo{color:var(--azul);font-weight:700;text-align:right;padding:10px 6px;cursor:pointer;}
+
+.mas-item{background:#fff;border-radius:10px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+  cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+.mas-item .ic{font-size:21px;width:26px;text-align:center;}
+.mas-item .txt .t{font-weight:600;font-size:14.5px;}
+.mas-item .txt .d{font-size:12px;color:#888;}
+
+.mov-item{background:#fff;border-radius:8px;padding:11px 13px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.06);}
+.mov-item .mi-top{display:flex;justify-content:space-between;font-size:13px;color:#777;}
+.mov-item .mi-mid{display:flex;justify-content:space-between;align-items:center;margin-top:3px;}
+.mov-item .mi-cliente{font-weight:600;font-size:14.5px;}
+.mov-item .mi-monto{font-weight:700;font-size:15px;}
+.mov-item .mi-monto.recibido{color:var(--verde);}
+.mov-item .mi-monto.entrego{color:var(--rojo);}
+.mov-item .mi-nota{font-size:13px;color:#555;margin-top:3px;}
+.mov-item .mi-acts{display:flex;gap:14px;margin-top:6px;}
+.mov-item .mi-acts span{font-size:12px;color:var(--azul);cursor:pointer;}
+
+.art-row{background:#fff;border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;
+  align-items:center;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+.art-row .nom{font-weight:600;font-size:14.5px;}
+.art-row .precio{color:var(--azul);font-weight:700;}
+.art-row .del{color:var(--rojo);font-size:18px;cursor:pointer;margin-left:10px;}
+
+.item-nota{background:#f7f8fa;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+.item-nota .d{font-size:13.5px;}
+.item-nota .t{font-weight:700;color:var(--azul);}
+
+.rec-tabs{display:flex;gap:8px;margin-bottom:12px;}
+.rec-tabs button{flex:1;border:1px solid var(--borde);background:#fff;color:#555;border-radius:8px;padding:9px 4px;font-size:14px;cursor:pointer;}
+.rec-tabs button.active{background:var(--azul);color:#fff;border-color:var(--azul);}
+.rec-item{background:#fff;border-radius:8px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.1);border-left:5px solid #ccc;}
+.rec-item .ri-top{display:flex;justify-content:space-between;align-items:baseline;}
+.rec-item .ri-name{font-weight:600;font-size:15px;}
+.rec-item .ri-freq{font-size:11px;color:#777;}
+.rec-item .ri-mid{display:flex;justify-content:space-between;margin-top:4px;font-size:13px;color:#555;}
+.rec-item .ri-btns{display:flex;gap:8px;margin-top:8px;}
+.rec-item .ri-btns button{flex:1;border:none;border-radius:6px;padding:8px 4px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;}
+.rec-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;font-size:11px;color:#666;}
+.rec-legend span{display:inline-flex;align-items:center;gap:4px;}
+.rec-legend i{width:9px;height:9px;border-radius:2px;display:inline-block;}
+
+.fab{position:fixed;right:18px;bottom:96px;max-width:520px;margin:0 auto;z-index:60;}
+#print-area{display:none;}
+@media print{
+  body *{visibility:hidden;}
+  #print-area, #print-area *{visibility:visible;}
+  #print-area{position:absolute;left:0;top:0;width:100%;display:block;}
+}
+.filtros-fecha{display:flex;gap:8px;overflow-x:auto;padding:10px 12px;background:#fff;border-bottom:1px solid var(--borde);}
+.search-row{display:flex;gap:8px;padding:10px 12px;background:#fff;}
+.search-row input{margin:0;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div>
+      <h1 id="header-title">Libreta de Fiado</h1>
+      <div class="sub">RiYan Fiado</div>
+    </div>
+    <div style="display:flex;align-items:center;">
+      <button class="icon-btn" id="btn-recordatorios" title="Recordatorios" style="position:relative;">🔔<span id="badge-recordatorios" class="badge-noti" style="display:none;"></span></button>
+    </div>
+  </header>
+
+  <!-- ===================== PANTALLA: CLIENTES (INICIO) ===================== -->
+  <div class="screen active" id="screen-clientes" style="flex:1;overflow:hidden;">
+    <div class="chips" id="chips-filtro">
+      <div class="chip active" data-f="todo">Todo</div>
+      <div class="chip" data-f="deuda">Deuda</div>
+      <div class="chip" data-f="adelantado">Adelantado</div>
+      <div class="chip" data-f="saldado">Saldado</div>
+    </div>
+    <div class="search-row">
+      <input type="text" id="buscar-cliente" placeholder="🔍 Buscar cliente o proveedor...">
+    </div>
+    <div id="lista-clientes"></div>
+    <div class="summary-bar">
+      <div><span class="lbl">Adelantado</span><span class="val" id="sum-adelantado" style="color:var(--verde);">0</span></div>
+      <div><span class="lbl">Deuda</span><span class="val" id="sum-deuda" style="color:var(--rojo);">0</span></div>
+      <div><span class="lbl">Saldo</span><span class="val" id="sum-saldo">0</span></div>
+    </div>
+    <div class="actions-bar">
+      <button class="btn-outline" id="btn-ir-transacciones">📋 Transacciones</button>
+      <button class="btn-fill" id="btn-add-cliente">+👤 Añadir Cliente</button>
+    </div>
+    <nav class="bottom">
+      <button data-screen="clientes" class="active"><span class="ic">👥</span>Clientes</button>
+      <button data-screen="catalogo"><span class="ic">📦</span>Catálogo</button>
+      <button data-screen="transferir2"><span class="ic">🔄</span>Transferir</button>
+      <button data-screen="mas"><span class="ic">⋯</span>Más</button>
+    </nav>
+  </div>
+
+  <!-- ===================== PANTALLA: CATALOGO ===================== -->
+  <div class="screen" id="screen-catalogo" style="flex:1;overflow:hidden;">
+    <div class="ov-body" style="padding:14px;">
+      <div class="card">
+        <label class="small">Nuevo artículo (reutilizable)</label>
+        <input type="text" id="art-nombre" placeholder="Nombre del artículo">
+        <input type="number" id="art-precio" placeholder="Precio">
+        <button class="btn-fill" style="width:100%;padding:11px;border-radius:8px;border:none;color:#fff;" id="btn-add-articulo">Guardar artículo</button>
+      </div>
+      <div id="lista-articulos"></div>
+    </div>
+    <nav class="bottom">
+      <button data-screen="clientes"><span class="ic">👥</span>Clientes</button>
+      <button data-screen="catalogo" class="active"><span class="ic">📦</span>Catálogo</button>
+      <button data-screen="transferir2"><span class="ic">🔄</span>Transferir</button>
+      <button data-screen="mas"><span class="ic">⋯</span>Más</button>
+    </nav>
+  </div>
+
+  <!-- ===================== PANTALLA: MAS ===================== -->
+  <div class="screen" id="screen-mas" style="flex:1;overflow:hidden;">
+    <div class="ov-body" style="padding:14px;">
+      <div class="mas-item" id="mas-transacciones"><div class="ic">📋</div><div class="txt"><div class="t">Transacciones</div><div class="d">Todos los movimientos, filtros, imprimir y compartir</div></div></div>
+      <div class="mas-item" id="mas-recordatorios"><div class="ic">🔔</div><div class="txt"><div class="t">Recordatorios</div><div class="d">Avisos de cobro o pago pendiente</div></div></div>
+      <div class="mas-item" id="mas-transferir"><div class="ic">🔄</div><div class="txt"><div class="t">Transferir entre cuentas</div><div class="d">Mover saldo de un cliente a otro</div></div></div>
+      <div class="mas-item" id="mas-catalogo"><div class="ic">📦</div><div class="txt"><div class="t">Catálogo de artículos</div><div class="d">Administra nombre y precio reutilizables</div></div></div>
+    </div>
+    <nav class="bottom">
+      <button data-screen="clientes"><span class="ic">👥</span>Clientes</button>
+      <button data-screen="catalogo"><span class="ic">📦</span>Catálogo</button>
+      <button data-screen="transferir2"><span class="ic">🔄</span>Transferir</button>
+      <button data-screen="mas" class="active"><span class="ic">⋯</span>Más</button>
+    </nav>
+  </div>
+
+  <!-- ===================== PANTALLA: TRANSFERIR (nav shortcut) ===================== -->
+  <div class="screen" id="screen-transferir2" style="flex:1;overflow:hidden;">
+    <div class="ov-body" style="padding:14px;" id="transferir2-body"></div>
+    <nav class="bottom">
+      <button data-screen="clientes"><span class="ic">👥</span>Clientes</button>
+      <button data-screen="catalogo"><span class="ic">📦</span>Catálogo</button>
+      <button data-screen="transferir2" class="active"><span class="ic">🔄</span>Transferir</button>
+      <button data-screen="mas"><span class="ic">⋯</span>Más</button>
+    </nav>
+  </div>
+
+</div>
+
+<!-- ===================== OVERLAY: DETALLE CLIENTE ===================== -->
+<div id="overlay-cliente">
+  <div class="ov-header">
+    <button id="cli-back">‹</button>
+    <h2 id="cli-nombre">Cliente</h2>
+    <button id="cli-editar" style="font-size:18px;">✏️</button>
+  </div>
+  <div class="ov-body">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:13px;color:#777;" id="cli-cat-lbl">Cliente</div>
+      <div style="font-size:26px;font-weight:700;margin-top:4px;" id="cli-saldo-grande">$0.00</div>
+      <div style="font-size:13px;color:#777;" id="cli-saldo-lbl">Saldado</div>
+    </div>
+    <div class="actions-bar" style="padding:0 0 12px;">
+      <button class="btn-fill" style="background:var(--verde);" id="cli-btn-recibido">+ Recibido</button>
+      <button class="btn-fill" style="background:var(--rojo);" id="cli-btn-entrego">+ Entregó</button>
+    </div>
+    <div class="actions-bar" style="padding:0 0 12px;">
+      <button class="btn-outline" id="cli-btn-nota">🧾 Nota de crédito</button>
+    </div>
+    <div id="cli-lista-movs"></div>
+  </div>
+</div>
+
+<!-- ===================== OVERLAY: AÑADIR/EDITAR CLIENTE ===================== -->
+<div id="overlay-add-cliente">
+  <div class="ov-header">
+    <button id="addcli-back">‹</button>
+    <h2>Añadir Cliente / Proveedor</h2>
+  </div>
+  <div class="ov-body">
+    <div class="card">
+      <label class="small">Nombre</label>
+      <input type="text" id="addcli-nombre" placeholder="Nombre completo">
+      <label class="small">Teléfono (opcional)</label>
+      <input type="tel" id="addcli-telefono" placeholder="Número de teléfono">
+      <label class="small">Categoría</label>
+      <div class="toggle-group">
+        <label><input type="radio" name="addcli-cat" value="cliente" checked> Cliente</label>
+        <label><input type="radio" name="addcli-cat" value="proveedor"> Proveedor</label>
+      </div>
+      <label class="small">Saldo de apertura (opcional)</label>
+      <input type="number" id="addcli-saldo" placeholder="0.00">
+      <div class="toggle-group">
+        <label><input type="radio" name="addcli-saldo-tipo" value="adelantado"> Adelantado</label>
+        <label><input type="radio" name="addcli-saldo-tipo" value="deuda" checked> Deuda</label>
+      </div>
+      <label class="small">Notas (opcional)</label>
+      <textarea id="addcli-notas" placeholder="Notas..."></textarea>
+    </div>
+  </div>
+  <div class="ov-footer">
+    <button style="background:var(--azul);color:#fff;" id="btn-guardar-cliente">Guardar cliente</button>
+  </div>
+</div>
+
+<!-- ===================== OVERLAY: AÑADIR TRANSACCIÓN ===================== -->
+<div id="overlay-mov">
+  <div class="ov-header">
+    <button id="ovmov-back">‹</button>
+    <h2 id="ovmov-titulo">Añadir Transacción</h2>
+  </div>
+  <div class="ov-body">
+    <div class="card">
+      <label class="small">Cliente / Proveedor</label>
+      <div id="ovmov-cliente-sel" class="pick-row" style="background:#f7f8fa;border-radius:8px;border:1px solid var(--borde);">
+        <span id="ovmov-cliente-txt">Seleccionar cliente</span><span>▾</span>
+      </div>
+
+      <div class="amt-field entrego">
+        <span class="lab">Usted Entregó</span>
+        <input type="number" id="ovmov-entrego" placeholder="0.00">
+        <button class="calc-ic" data-target="ovmov-entrego">🧮</button>
+      </div>
+      <div class="amt-field recibido">
+        <span class="lab">Usted Recibido</span>
+        <input type="number" id="ovmov-recibido" placeholder="0.00">
+        <button class="calc-ic" data-target="ovmov-recibido">🧮</button>
+      </div>
+
+      <div class="field-icon-wrap">
+        <textarea id="ovmov-nota" placeholder="Escriba la nota aquí [Opcional]"></textarea>
+        <button class="fi-btn" id="ovmov-mic" title="Dictar">🎤</button>
+      </div>
+
+      <div class="two-btn">
+        <button id="ovmov-evidencia-btn">📷 Evidencia</button>
+        <button id="ovmov-nota-credito-btn">🧾 Nota de crédito</button>
+      </div>
+      <input type="file" id="ovmov-evidencia-input" accept="image/*,application/pdf" style="display:none;">
+      <div id="ovmov-evidencia-preview" style="margin-top:8px;font-size:13px;color:var(--azul);"></div>
+      <div id="ovmov-nota-credito-preview" style="margin-top:4px;font-size:13px;color:var(--azul);"></div>
+
+      <div class="row2" style="margin-top:12px;">
+        <div>
+          <label class="small">Fecha</label>
+          <input type="date" id="ovmov-fecha">
+        </div>
+        <div>
+          <label class="small">Hora</label>
+          <input type="time" id="ovmov-hora">
+        </div>
+      </div>
+      <label class="small">Fecha de vencimiento (opcional)</label>
+      <input type="date" id="ovmov-vencimiento">
+    </div>
+  </div>
+  <div class="ov-footer">
+    <button style="background:#e3eafc;color:var(--azul);" id="btn-mov-whatsapp">Enviar mensaje</button>
+    <button style="background:var(--azul);color:#fff;" id="btn-mov-guardar">Guardar</button>
+  </div>
+</div>
+
+<!-- ===================== OVERLAY: NOTA DE CREDITO ===================== -->
+<div id="overlay-nota">
+  <div class="ov-header">
+    <button id="ovnota-back">‹</button>
+    <h2>Nota de Crédito</h2>
+  </div>
+  <div class="ov-body">
+    <div class="card">
+      <div id="ovnota-cliente-sel" class="pick-row" style="background:#f7f8fa;border-radius:8px;border:1px solid var(--borde);margin-bottom:10px;">
+        <span id="ovnota-cliente-txt">Seleccionar cliente</span><span>▾</span>
+      </div>
+      <div class="toggle-group">
+        <label><input type="radio" name="ovnota-tipo" value="compra"> Compra</label>
+        <label><input type="radio" name="ovnota-tipo" value="venta" checked> Venta</label>
+      </div>
+      <label class="small">Fecha</label>
+      <input type="date" id="ovnota-fecha">
+
+      <div id="ovnota-items"></div>
+      <button class="two-btn" id="btn-ovnota-add-item" style="width:100%;border:1px dashed var(--azul);background:#fff;color:var(--azul);border-radius:8px;padding:11px;font-size:14px;cursor:pointer;">+ Añadir artículo</button>
+
+      <label class="small" style="margin-top:12px;">Cargos adicionales</label>
+      <input type="number" id="ovnota-cargos" placeholder="0.00">
+      <label class="small">Descuento / Pago</label>
+      <input type="number" id="ovnota-descuento" placeholder="0.00">
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:17px;padding:8px 2px;">
+        <span>Total</span><span id="ovnota-total">$0.00</span>
+      </div>
+      <label class="small">Notas</label>
+      <textarea id="ovnota-notas" placeholder="Notas [Opcional]"></textarea>
+    </div>
+  </div>
+  <div class="ov-footer">
+    <button style="background:#e3eafc;color:var(--azul);" id="btn-nota-pdf">📄 Generar PDF</button>
+    <button style="background:var(--azul);color:#fff;" id="btn-nota-guardar">Guardar</button>
+  </div>
+</div>
+
+<!-- ===================== OVERLAY: TRANSFERIR ===================== -->
+<div id="overlay-transferir">
+  <div class="ov-header">
+    <button id="ovtrans-back">‹</button>
+    <h2>Transferir entre cuentas</h2>
+  </div>
+  <div class="ov-body">
+    <div class="card">
+      <label class="small">Cantidad</label>
+      <input type="number" id="ovtrans-cantidad" placeholder="0.00">
+      <label class="small">De (cliente/proveedor)</label>
+      <div id="ovtrans-de-sel" class="pick-row" style="background:#f7f8fa;border-radius:8px;border:1px solid var(--borde);margin-bottom:10px;">
+        <span id="ovtrans-de-txt">Seleccionar</span><span>▾</span>
+      </div>
+      <label class="small">A (cliente/proveedor)</label>
+      <div id="ovtrans-a-sel" class="pick-row" style="background:#f7f8fa;border-radius:8px;border:1px solid var(--borde);margin-bottom:10px;">
+        <span id="ovtrans-a-txt">Seleccionar</span><span>▾</span>
+      </div>
+      <label class="small">Fecha</label>
+      <input type="date" id="ovtrans-fecha">
+      <label class="small">Narración</label>
+      <textarea id="ovtrans-narracion" placeholder="Notas [Opcional]"></textarea>
+    </div>
+  </div>
+  <div class="ov-footer">
+    <button style="background:var(--azul);color:#fff;width:100%;" id="btn-transferir-guardar">Transferir</button>
+  </div>
+</div>
+
+<!-- ===================== OVERLAY: RECORDATORIOS ===================== -->
+<div id="overlay-recordatorios">
+  <div class="ov-header">
+    <button id="ovr-back">‹</button>
+    <h2>Recordatorios</h2>
+  </div>
+  <div class="ov-body">
+    <div class="rec-tabs" id="rec-tabs">
+      <button data-t="hoy" class="active">Hoy / Vencidos</button>
+      <button data-t="todo">Todo</button>
+    </div>
+    <div id="rec-lista"></div>
+    <div class="rec-legend">
+      <span><i style="background:#2e7d32;"></i>Una vez</span>
+      <span><i style="background:#1565c0;"></i>Diario</span>
+      <span><i style="background:#ef6c00;"></i>Semanal</span>
+      <span><i style="background:#f9a825;"></i>Mensual</span>
+      <span><i style="background:#8e24aa;"></i>Trimestral</span>
+      <span><i style="background:#ad1457;"></i>Anual</span>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <label class="small">Nuevo recordatorio</label>
+      <input type="text" id="rec-nombre" placeholder="Ej. Cobrar a bodegón...">
+      <div id="rec-cliente-sel" class="pick-row" style="background:#f7f8fa;border-radius:8px;border:1px solid var(--borde);margin-bottom:10px;">
+        <span id="rec-cliente-txt">Seleccionar cliente (opcional)</span><span>▾</span>
+      </div>
+      <div class="toggle-group">
+        <label><input type="radio" name="rec-tipo" value="recibido" checked> Cobrar</label>
+        <label><input type="radio" name="rec-tipo" value="entrego"> Pagar</label>
+      </div>
+      <div class="row2">
+        <div>
+          <label class="small">Cantidad</label>
+          <input type="number" id="rec-cantidad" placeholder="0.00">
+        </div>
+        <div>
+          <label class="small">Fecha inicio</label>
+          <input type="date" id="rec-fecha">
+        </div>
+      </div>
+      <label class="small">Frecuencia</label>
+      <select id="rec-frecuencia">
+        <option value="una_vez">Una vez</option>
+        <option value="diario">Diario</option>
+        <option value="semanal">Semanal</option>
+        <option value="mensual" selected>Mensual</option>
+        <option value="trimestral">Trimestral</option>
+        <option value="anual">Anual</option>
+      </select>
+      <button style="width:100%;padding:12px;border:none;border-radius:8px;background:var(--azul);color:#fff;font-weight:700;cursor:pointer;" id="btn-add-recordatorio">Guardar recordatorio</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== OVERLAY: TRANSACCIONES GLOBAL ===================== -->
+<div id="overlay-catalogo" style="display:none;"></div>
+
+<div id="overlay-transacciones" style="position:fixed;inset:0;background:var(--gris-bg);z-index:100;display:none;flex-direction:column;">
+  <div class="ov-header">
+    <button id="ovtx-back">‹</button>
+    <h2>Transacciones</h2>
+    <button id="ovtx-print" style="font-size:19px;">🖨️</button>
+    <button id="ovtx-share" style="font-size:19px;">📤</button>
+  </div>
+  <div class="search-row">
+    <input type="text" id="ovtx-buscar" placeholder="🔍 Buscar por nota o cliente...">
+  </div>
+  <div class="filtros-fecha" id="ovtx-filtros">
+    <div class="chip" data-f="todo" style="background:var(--azul);color:#fff;" >Todo</div>
+    <div class="chip" data-f="diario" style="background:#eee;color:#444;">Diario</div>
+    <div class="chip" data-f="semanal" style="background:#eee;color:#444;">Semanal</div>
+    <div class="chip" data-f="mensual" style="background:#eee;color:#444;">Mensual</div>
+  </div>
+  <div class="ov-body" id="ovtx-lista"></div>
+  <div class="summary-bar">
+    <div><span class="lbl">Recibido</span><span class="val" id="ovtx-sum-recibido" style="color:var(--verde);">0</span></div>
+    <div><span class="lbl">Entregado</span><span class="val" id="ovtx-sum-entregado" style="color:var(--rojo);">0</span></div>
+    <div><span class="lbl">Saldo</span><span class="val" id="ovtx-sum-saldo">0</span></div>
+  </div>
+</div>
+
+<!-- ===================== MODALES ===================== -->
+<div class="modal-bg" id="modal-pick">
+  <div class="modal-sheet">
+    <h3 id="modal-pick-titulo">Seleccionar</h3>
+    <input type="text" id="modal-pick-buscar" placeholder="Buscar...">
+    <div id="modal-pick-lista"></div>
+    <div class="add-nuevo" id="modal-pick-nuevo">+ Añadir nuevo</div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-desglose">
+  <div class="modal-sheet">
+    <h3>Calculadora de efectivo</h3>
+    <div id="desglose-denoms"></div>
+    <div style="display:flex;justify-content:space-between;font-weight:700;font-size:18px;margin-top:10px;">
+      <span>Total</span><span id="desglose-total">$0.00</span>
+    </div>
+    <button style="width:100%;padding:12px;border:none;border-radius:8px;background:var(--azul);color:#fff;font-weight:700;margin-top:10px;cursor:pointer;" id="btn-desglose-usar">Usar este monto</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-item-nota">
+  <div class="modal-sheet">
+    <h3>Añadir artículo a la nota</h3>
+    <div id="modal-item-art-sel" class="pick-row" style="background:#f7f8fa;border-radius:8px;border:1px solid var(--borde);margin-bottom:10px;">
+      <span id="modal-item-art-txt">Seleccionar artículo</span><span>▾</span>
+    </div>
+    <label class="small">Cantidad</label>
+    <input type="number" id="modal-item-cantidad" placeholder="1">
+    <label class="small">Precio</label>
+    <input type="number" id="modal-item-precio" placeholder="0.00">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+      <button style="padding:10px 16px;border:none;background:#eee;border-radius:8px;cursor:pointer;" id="btn-item-cancelar">Cancelar</button>
+      <button style="padding:10px 16px;border:none;background:var(--azul);color:#fff;border-radius:8px;cursor:pointer;" id="btn-item-anadir">Añadir</button>
+    </div>
+  </div>
+</div>
+
+<div id="print-area"></div>
+
+<script>
+/* ===================== ALMACENAMIENTO ===================== */
+const LS = {
+  clientes:'fiado_clientes', movs:'fiado_movimientos', articulos:'fiado_articulos',
+  notas:'fiado_notas_credito', recordatorios:'fiado_recordatorios'
+};
+function load(key, def){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; }catch(e){ return def; } }
+function save(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+
+let clientes = load(LS.clientes, []);
+let movimientos = load(LS.movs, []);
+let articulos = load(LS.articulos, []);
+let notasCredito = load(LS.notas, []);
+let recordatorios = load(LS.recordatorios, []);
+
+function saveAll(){
+  save(LS.clientes, clientes);
+  save(LS.movs, movimientos);
+  save(LS.articulos, articulos);
+  save(LS.notas, notasCredito);
+  save(LS.recordatorios, recordatorios);
+}
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function todayISO(){ const d=new Date(); const tz=d.getTimezoneOffset(); const l=new Date(d.getTime()-tz*60000); return l.toISOString().slice(0,10); }
+function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function money(n){ n = Number(n)||0; const neg = n<0; n=Math.abs(n); const s = n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}); return (neg?'-':'')+'$'+s; }
+function fmtDate(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']; return d+' '+meses[parseInt(m)-1]+' '+y; }
+
+/* ===================== SALDO POR CLIENTE ===================== */
+function saldoCliente(clienteId){
+  return movimientos.filter(m=>m.clienteId===clienteId).reduce((acc,m)=>{
+    return acc + (m.tipo==='recibido' ? m.monto : -m.monto);
+  },0);
+}
+function estadoSaldo(saldo){
+  if(Math.abs(saldo) < 0.005) return 'saldado';
+  return saldo < 0 ? 'deuda' : 'adelantado';
+}
+
+/* ===================== NAVEGACION ENTRE PANTALLAS ===================== */
+function irPantalla(nombre){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+nombre).classList.add('active');
+  document.querySelectorAll('nav.bottom button').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('nav.bottom button[data-screen="'+nombre+'"]').forEach(b=>b.classList.add('active'));
+  if(nombre==='catalogo') renderCatalogo();
+  if(nombre==='mas') {}
+  if(nombre==='transferir2') renderTransferir2();
+}
+document.querySelectorAll('nav.bottom button').forEach(btn=>{
+  btn.addEventListener('click', ()=> irPantalla(btn.dataset.screen));
+});
+
+/* ===================== RENDER LISTA CLIENTES ===================== */
+let filtroActivo = 'todo';
+document.querySelectorAll('#chips-filtro .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('#chips-filtro .chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    filtroActivo = chip.dataset.f;
+    renderClientes();
+  });
+});
+document.getElementById('buscar-cliente').addEventListener('input', renderClientes);
+
+function renderClientes(){
+  const q = document.getElementById('buscar-cliente').value.trim().toLowerCase();
+  let lista = clientes.map(c=>({c, saldo:saldoCliente(c.id)}));
+  if(q) lista = lista.filter(x=>x.c.nombre.toLowerCase().includes(q));
+  if(filtroActivo!=='todo') lista = lista.filter(x=>estadoSaldo(x.saldo)===filtroActivo);
+  lista.sort((a,b)=>a.c.nombre.localeCompare(b.c.nombre));
+
+  const cont = document.getElementById('lista-clientes');
+  if(lista.length===0){
+    cont.innerHTML = '<div class="empty-msg">Sin clientes o proveedores todavía.<br>Toca "Añadir Cliente" para empezar.</div>';
+  } else {
+    cont.innerHTML = lista.map(({c,saldo})=>{
+      const est = estadoSaldo(saldo);
+      const color = est==='deuda' ? 'var(--rojo)' : est==='adelantado' ? 'var(--verde)' : '#888';
+      const lbl = est==='deuda' ? 'Deuda' : est==='adelantado' ? 'Adelantado' : 'Saldado';
+      const inicial = c.nombre.trim()[0] ? c.nombre.trim()[0].toUpperCase() : '?';
+      return `<div class="cliente-card" data-id="${c.id}">
+        <div class="cliente-avatar">${inicial}</div>
+        <div class="cliente-info">
+          <div class="nom">${c.nombre}</div>
+          <div class="cat">${c.categoria==='proveedor'?'Proveedor':'Cliente'}</div>
+        </div>
+        <div class="cliente-saldo" style="color:${color};">
+          ${money(saldo)}
+          <span class="lbl">${lbl}</span>
+        </div>
+      </div>`;
+    }).join('');
+    cont.querySelectorAll('.cliente-card').forEach(card=>{
+      card.addEventListener('click', ()=> abrirDetalleCliente(card.dataset.id));
+    });
+  }
+
+  const adel = clientes.reduce((a,c)=>{ const s=saldoCliente(c.id); return a + (s>0?s:0); },0);
+  const deud = clientes.reduce((a,c)=>{ const s=saldoCliente(c.id); return a + (s<0?s:0); },0);
+  document.getElementById('sum-adelantado').textContent = money(adel);
+  document.getElementById('sum-deuda').textContent = money(deud);
+  document.getElementById('sum-saldo').textContent = money(adel+deud);
+
+  actualizarBadgeRecordatorios();
+}
+
+/* ===================== AÑADIR CLIENTE ===================== */
+let clienteEditandoId = null;
+document.getElementById('btn-add-cliente').addEventListener('click', ()=>{
+  clienteEditandoId = null;
+  document.getElementById('addcli-nombre').value='';
+  document.getElementById('addcli-telefono').value='';
+  document.getElementById('addcli-saldo').value='';
+  document.getElementById('addcli-notas').value='';
+  document.querySelector('input[name=addcli-cat][value=cliente]').checked = true;
+  document.querySelector('input[name=addcli-saldo-tipo][value=deuda]').checked = true;
+  document.getElementById('overlay-add-cliente').classList.add('active');
+});
+document.getElementById('addcli-back').addEventListener('click', ()=>{
+  document.getElementById('overlay-add-cliente').classList.remove('active');
+});
+document.getElementById('btn-guardar-cliente').addEventListener('click', ()=>{
+  const nombre = document.getElementById('addcli-nombre').value.trim();
+  if(!nombre){ alert('Captura el nombre.'); return; }
+  const telefono = document.getElementById('addcli-telefono').value.trim();
+  const categoria = document.querySelector('input[name=addcli-cat]:checked').value;
+  const notas = document.getElementById('addcli-notas').value.trim();
+  const saldoMonto = parseFloat(document.getElementById('addcli-saldo').value) || 0;
+  const saldoTipo = document.querySelector('input[name=addcli-saldo-tipo]:checked').value;
+
+  let cliente;
+  if(clienteEditandoId){
+    cliente = clientes.find(c=>c.id===clienteEditandoId);
+    cliente.nombre = nombre; cliente.telefono = telefono; cliente.categoria = categoria; cliente.notas = notas;
+  } else {
+    cliente = {id:uid(), nombre, telefono, categoria, notas, creado: Date.now()};
+    clientes.push(cliente);
+    if(saldoMonto > 0){
+      const monto = saldoMonto;
+      movimientos.push({
+        id: uid(), clienteId: cliente.id,
+        tipo: saldoTipo==='adelantado' ? 'recibido' : 'entrego',
+        monto, nota:'Saldo de apertura', evidencia:null, notaCreditoId:null,
+        fecha: todayISO(), hora: nowHM(), ts: Date.now(), fechaVencimiento:null
+      });
+    }
+  }
+  saveAll();
+  document.getElementById('overlay-add-cliente').classList.remove('active');
+  renderClientes();
+});
+
+/* ===================== DETALLE CLIENTE ===================== */
+let clienteActivoId = null;
+function abrirDetalleCliente(id){
+  clienteActivoId = id;
+  const c = clientes.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('cli-nombre').textContent = c.nombre;
+  document.getElementById('cli-cat-lbl').textContent = c.categoria==='proveedor'?'Proveedor':'Cliente';
+  const saldo = saldoCliente(id);
+  const est = estadoSaldo(saldo);
+  const color = est==='deuda' ? 'var(--rojo)' : est==='adelantado' ? 'var(--verde)' : '#888';
+  const lbl = est==='deuda' ? 'Deuda' : est==='adelantado' ? 'Adelantado' : 'Saldado';
+  document.getElementById('cli-saldo-grande').style.color = color;
+  document.getElementById('cli-saldo-grande').textContent = money(saldo);
+  document.getElementById('cli-saldo-lbl').textContent = lbl;
+  renderMovsCliente(id);
+  document.getElementById('overlay-cliente').classList.add('active');
+}
+document.getElementById('cli-back').addEventListener('click', ()=>{
+  document.getElementById('overlay-cliente').classList.remove('active');
+  renderClientes();
+});
+document.getElementById('cli-editar').addEventListener('click', ()=>{
+  const c = clientes.find(x=>x.id===clienteActivoId);
+  if(!c) return;
+  clienteEditandoId = c.id;
+  document.getElementById('addcli-nombre').value = c.nombre;
+  document.getElementById('addcli-telefono').value = c.telefono||'';
+  document.getElementById('addcli-notas').value = c.notas||'';
+  document.querySelector('input[name=addcli-cat][value='+c.categoria+']').checked = true;
+  document.getElementById('addcli-saldo').value='';
+  document.getElementById('overlay-add-cliente').classList.add('active');
+});
+
+function renderMovsCliente(clienteId){
+  const movs = movimientos.filter(m=>m.clienteId===clienteId).sort((a,b)=>b.ts-a.ts);
+  const cont = document.getElementById('cli-lista-movs');
+  if(movs.length===0){ cont.innerHTML = '<div class="empty-msg">Sin movimientos todavía.</div>'; return; }
+  cont.innerHTML = movs.map(m=>movItemHtml(m, false)).join('');
+  wireMovItemActions(cont);
+}
+
+function movItemHtml(m, mostrarCliente){
+  const cliente = clientes.find(c=>c.id===m.clienteId);
+  const nombreCliente = cliente ? cliente.nombre : '(eliminado)';
+  const notaCredito = m.notaCreditoId ? notasCredito.find(n=>n.id===m.notaCreditoId) : null;
+  return `<div class="mov-item" data-id="${m.id}">
+    <div class="mi-top"><span>${fmtDate(m.fecha)} ${m.hora||''}</span><span>${m.tipo==='recibido'?'Recibido':'Entregó'}</span></div>
+    <div class="mi-mid">
+      <span class="mi-cliente">${mostrarCliente?nombreCliente:''}</span>
+      <span class="mi-monto ${m.tipo}">${m.tipo==='recibido'?'+':'-'}${money(m.monto)}</span>
+    </div>
+    ${m.nota?`<div class="mi-nota">${m.nota}</div>`:''}
+    ${notaCredito?`<div class="mi-nota">🧾 Nota de crédito #${notaCredito.numero}</div>`:''}
+    ${m.evidencia?`<div class="mi-nota">📎 ${m.evidencia.nombre||'evidencia adjunta'}</div>`:''}
+    <div class="mi-acts"><span class="mi-del" data-id="${m.id}">🗑 Eliminar</span></div>
+  </div>`;
+}
+function wireMovItemActions(cont){
+  cont.querySelectorAll('.mi-del').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if(confirm('¿Eliminar este movimiento?')){
+        movimientos = movimientos.filter(m=>m.id!==el.dataset.id);
+        saveAll();
+        if(clienteActivoId) renderMovsCliente(clienteActivoId);
+        renderClientes();
+      }
+    });
+  });
+}
+
+/* ===================== OVERLAY AÑADIR TRANSACCIÓN ===================== */
+let movClienteSelId = null;
+let movEvidenciaData = null;
+let movNotaCreditoIdTmp = null;
+
+function abrirOverlayMov(clienteIdPrefill){
+  document.getElementById('ovmov-entrego').value='';
+  document.getElementById('ovmov-recibido').value='';
+  document.getElementById('ovmov-nota').value='';
+  document.getElementById('ovmov-fecha').value = todayISO();
+  document.getElementById('ovmov-hora').value = nowHM();
+  document.getElementById('ovmov-vencimiento').value='';
+  document.getElementById('ovmov-evidencia-preview').textContent='';
+  document.getElementById('ovmov-nota-credito-preview').textContent='';
+  movEvidenciaData = null;
+  movNotaCreditoIdTmp = null;
+  movClienteSelId = clienteIdPrefill || null;
+  actualizarTxtClienteMov();
+  document.getElementById('overlay-mov').classList.add('active');
+}
+function actualizarTxtClienteMov(){
+  const c = clientes.find(x=>x.id===movClienteSelId);
+  document.getElementById('ovmov-cliente-txt').textContent = c ? c.nombre : 'Seleccionar cliente';
+}
+document.getElementById('ovmov-back').addEventListener('click', ()=>{
+  document.getElementById('overlay-mov').classList.remove('active');
+});
+document.getElementById('ovmov-cliente-sel').addEventListener('click', ()=>{
+  abrirPickClientes((c)=>{ movClienteSelId = c.id; actualizarTxtClienteMov(); });
+});
+document.getElementById('cli-btn-recibido').addEventListener('click', ()=>{
+  abrirOverlayMov(clienteActivoId);
+  document.getElementById('ovmov-recibido').focus();
+});
+document.getElementById('cli-btn-entrego').addEventListener('click', ()=>{
+  abrirOverlayMov(clienteActivoId);
+  document.getElementById('ovmov-entrego').focus();
+});
+
+document.getElementById('ovmov-evidencia-btn').addEventListener('click', ()=>{
+  document.getElementById('ovmov-evidencia-input').click();
+});
+document.getElementById('ovmov-evidencia-input').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  if(file.type === 'application/pdf'){
+    if(file.size > 4*1024*1024){ alert('El PDF pesa más de 4MB, intenta con uno más ligero.'); }
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      movEvidenciaData = {data:reader.result, tipo:'pdf', nombre:file.name};
+      document.getElementById('ovmov-evidencia-preview').textContent = '📎 '+file.name;
+    };
+    reader.readAsDataURL(file);
+  } else {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      img.onload = ()=>{
+        const canvas = document.createElement('canvas');
+        const maxW = 900;
+        const scale = Math.min(1, maxW/img.width);
+        canvas.width = img.width*scale; canvas.height = img.height*scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg',0.6);
+        movEvidenciaData = {data:dataUrl, tipo:'imagen', nombre:file.name};
+        document.getElementById('ovmov-evidencia-preview').textContent = '📷 '+file.name;
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+document.getElementById('ovmov-mic').addEventListener('click', ()=>{
+  if(!window.isSecureContext){
+    alert('El dictado por voz solo funciona cuando la app se abre por https (por ejemplo desde el enlace publicado), no al abrir el archivo directamente.');
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ alert('Tu navegador no soporta dictado por voz.'); return; }
+  const rec = new SR();
+  rec.lang = 'es-MX';
+  rec.onresult = (ev)=>{
+    const texto = ev.results[0][0].transcript;
+    const ta = document.getElementById('ovmov-nota');
+    ta.value = (ta.value ? ta.value+' ' : '') + texto;
+  };
+  rec.start();
+});
+
+document.querySelectorAll('.calc-ic').forEach(btn=>{
+  btn.addEventListener('click', ()=> abrirDesglose(btn.dataset.target));
+});
+
+document.getElementById('ovmov-nota-credito-btn').addEventListener('click', ()=>{
+  abrirOverlayNota(movClienteSelId, (nota)=>{
+    movNotaCreditoIdTmp = nota.id;
+    document.getElementById('ovmov-nota-credito-preview').textContent = '🧾 Nota de crédito #'+nota.numero+' por '+money(nota.total);
+    document.getElementById('ovmov-entrego').value = nota.tipo==='venta' ? nota.total : '';
+    document.getElementById('ovmov-recibido').value = nota.tipo==='compra' ? nota.total : '';
+  });
+});
+
+document.getElementById('btn-mov-guardar').addEventListener('click', ()=>{
+  guardarMovimiento(false);
+});
+document.getElementById('btn-mov-whatsapp').addEventListener('click', ()=>{
+  guardarMovimiento(true);
+});
+function guardarMovimiento(compartir){
+  if(!movClienteSelId){ alert('Selecciona un cliente o proveedor.'); return; }
+  const entrego = parseFloat(document.getElementById('ovmov-entrego').value) || 0;
+  const recibido = parseFloat(document.getElementById('ovmov-recibido').value) || 0;
+  if(entrego<=0 && recibido<=0){ alert('Captura el monto entregado o recibido.'); return; }
+  const nota = document.getElementById('ovmov-nota').value.trim();
+  const fecha = document.getElementById('ovmov-fecha').value || todayISO();
+  const hora = document.getElementById('ovmov-hora').value || nowHM();
+  const vencimiento = document.getElementById('ovmov-vencimiento').value || null;
+  const ts = new Date(fecha+'T'+(hora||'00:00')+':00').getTime();
+
+  const nuevos = [];
+  if(entrego>0) nuevos.push({id:uid(), clienteId:movClienteSelId, tipo:'entrego', monto:entrego, nota, evidencia:movEvidenciaData, notaCreditoId:movNotaCreditoIdTmp, fecha, hora, ts, fechaVencimiento:vencimiento});
+  if(recibido>0) nuevos.push({id:uid(), clienteId:movClienteSelId, tipo:'recibido', monto:recibido, nota, evidencia:movEvidenciaData, notaCreditoId:movNotaCreditoIdTmp, fecha, hora, ts, fechaVencimiento:vencimiento});
+  movimientos.push(...nuevos);
+  saveAll();
+
+  if(compartir){
+    const c = clientes.find(x=>x.id===movClienteSelId);
+    let txt = 'Hola '+(c?c.nombre:'')+', te comparto el movimiento:\n';
+    nuevos.forEach(m=> txt += (m.tipo==='entrego'?'Entregó: ':'Recibido: ')+money(m.monto)+'\n');
+    if(nota) txt += 'Nota: '+nota+'\n';
+    window.open('https://wa.me/?text='+encodeURIComponent(txt), '_blank');
+  }
+
+  document.getElementById('overlay-mov').classList.remove('active');
+  if(clienteActivoId) renderMovsCliente(clienteActivoId);
+  renderClientes();
+}
+
+/* ===================== PICKER GENERICO DE CLIENTES ===================== */
+let pickCallback = null;
+function abrirPickClientes(cb){
+  pickCallback = cb;
+  document.getElementById('modal-pick-titulo').textContent = 'Seleccionar cliente';
+  renderModalPickLista(clientes.map(c=>({id:c.id,label:c.nombre,sub:c.categoria==='proveedor'?'Proveedor':'Cliente'})));
+  document.getElementById('modal-pick-nuevo').style.display='block';
+  document.getElementById('modal-pick-buscar').value='';
+  document.getElementById('modal-pick').classList.add('active');
+}
+function renderModalPickLista(items){
+  const cont = document.getElementById('modal-pick-lista');
+  if(items.length===0){ cont.innerHTML = '<div class="empty-msg">Sin resultados.</div>'; return; }
+  cont.innerHTML = items.map(it=>`<div class="pick-row" data-id="${it.id}"><span>${it.label}</span><span class="sub">${it.sub||''}</span></div>`).join('');
+  cont.querySelectorAll('.pick-row').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const obj = clientes.find(c=>c.id===row.dataset.id);
+      document.getElementById('modal-pick').classList.remove('active');
+      if(pickCallback && obj) pickCallback(obj);
+    });
+  });
+}
+document.getElementById('modal-pick-buscar').addEventListener('input', (e)=>{
+  const q = e.target.value.toLowerCase();
+  const filtrados = clientes.filter(c=>c.nombre.toLowerCase().includes(q)).map(c=>({id:c.id,label:c.nombre,sub:c.categoria==='proveedor'?'Proveedor':'Cliente'}));
+  renderModalPickLista(filtrados);
+});
+document.getElementById('modal-pick-nuevo').addEventListener('click', ()=>{
+  const nombre = prompt('Nombre del nuevo cliente/proveedor:');
+  if(nombre && nombre.trim()){
+    const c = {id:uid(), nombre:nombre.trim(), telefono:'', categoria:'cliente', notas:'', creado:Date.now()};
+    clientes.push(c);
+    saveAll();
+    document.getElementById('modal-pick').classList.remove('active');
+    if(pickCallback) pickCallback(c);
+    renderClientes();
+  }
+});
+
+/* ===================== CALCULADORA DE DESGLOSE ===================== */
+const DENOMS = [1000,500,200,100,50,20,10,5,2,1,0.5];
+let desgloseTarget = null;
+function abrirDesglose(targetId){
+  desgloseTarget = targetId;
+  const cont = document.getElementById('desglose-denoms');
+  cont.innerHTML = DENOMS.map(d=>`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <span style="width:60px;text-align:right;">${d>=1?('$'+d):('$'+d.toFixed(2))}</span>
+      <span>×</span>
+      <input type="number" min="0" data-d="${d}" class="desglose-input" style="flex:1;margin:0;padding:8px;">
+      <span style="width:70px;text-align:right;" class="desglose-sub" data-sub="${d}">$0.00</span>
+    </div>`).join('');
+  cont.querySelectorAll('.desglose-input').forEach(inp=>{
+    inp.addEventListener('input', recalcDesglose);
+  });
+  recalcDesglose();
+  document.getElementById('modal-desglose').classList.add('active');
+}
+function recalcDesglose(){
+  let total = 0;
+  document.querySelectorAll('.desglose-input').forEach(inp=>{
+    const d = parseFloat(inp.dataset.d);
+    const cant = parseFloat(inp.value)||0;
+    const sub = d*cant;
+    total += sub;
+    document.querySelector('.desglose-sub[data-sub="'+d+'"]').textContent = money(sub);
+  });
+  document.getElementById('desglose-total').textContent = money(total);
+}
+document.getElementById('btn-desglose-usar').addEventListener('click', ()=>{
+  const total = document.querySelectorAll('.desglose-input')
+    .reduce((a,inp)=> a + (parseFloat(inp.dataset.d)*(parseFloat(inp.value)||0)), 0);
+  if(desgloseTarget) document.getElementById(desgloseTarget).value = total.toFixed(2);
+  document.getElementById('modal-desglose').classList.remove('active');
+});
+
+/* ===================== CATALOGO DE ARTICULOS ===================== */
+function renderCatalogo(){
+  const cont = document.getElementById('lista-articulos');
+  if(articulos.length===0){ cont.innerHTML = '<div class="empty-msg">Sin artículos guardados todavía.</div>'; return; }
+  cont.innerHTML = articulos.map(a=>`<div class="art-row">
+    <span class="nom">${a.nombre}</span>
+    <span><span class="precio">${money(a.precio)}</span><span class="del" data-id="${a.id}">🗑</span></span>
+  </div>`).join('');
+  cont.querySelectorAll('.del').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      if(confirm('¿Eliminar este artículo del catálogo?')){
+        articulos = articulos.filter(a=>a.id!==el.dataset.id);
+        saveAll(); renderCatalogo();
+      }
+    });
+  });
+}
+document.getElementById('btn-add-articulo').addEventListener('click', ()=>{
+  const nombre = document.getElementById('art-nombre').value.trim();
+  const precio = parseFloat(document.getElementById('art-precio').value) || 0;
+  if(!nombre){ alert('Captura el nombre del artículo.'); return; }
+  articulos.push({id:uid(), nombre, precio});
+  saveAll();
+  document.getElementById('art-nombre').value='';
+  document.getElementById('art-precio').value='';
+  renderCatalogo();
+});
+
+/* ===================== MAS: navegacion a sub-pantallas ===================== */
+document.getElementById('mas-transacciones').addEventListener('click', ()=> abrirOverlayTransacciones());
+document.getElementById('mas-recordatorios').addEventListener('click', ()=> abrirOverlayRecordatorios());
+document.getElementById('mas-transferir').addEventListener('click', ()=> abrirOverlayTransferir());
+document.getElementById('mas-catalogo').addEventListener('click', ()=> irPantalla('catalogo'));
+document.getElementById('btn-ir-transacciones').addEventListener('click', ()=> abrirOverlayTransacciones());
+
+function renderTransferir2(){
+  document.getElementById('transferir2-body').innerHTML = `<div class="card" style="text-align:center;">
+    <p style="color:#777;font-size:14px;">Mueve saldo de un cliente/proveedor a otro.</p>
+    <button style="width:100%;padding:12px;border:none;border-radius:8px;background:var(--azul);color:#fff;font-weight:700;cursor:pointer;" id="btn-ir-transferir">🔄 Transferir entre cuentas</button>
+  </div>`;
+  document.getElementById('btn-ir-transferir').addEventListener('click', abrirOverlayTransferir);
+}
+
+/* ===================== OVERLAY TRANSFERIR ===================== */
+function abrirOverlayTransferir(){
+  document.getElementById('ovtrans-cantidad').value='';
+  document.getElementById('ovtrans-fecha').value = todayISO();
+  document.getElementById('ovtrans-narracion').value='';
+  ovtransDeId = null; ovtransAId = null;
+  document.getElementById('ovtrans-de-txt').textContent = 'Seleccionar';
+  document.getElementById('ovtrans-a-txt').textContent = 'Seleccionar';
+  document.getElementById('overlay-transferir').classList.add('active');
+}
+document.getElementById('ovtrans-back').addEventListener('click', ()=>{
+  document.getElementById('overlay-transferir').classList.remove('active');
+});
+let ovtransDeId = null, ovtransAId = null;
+document.getElementById('ovtrans-de-sel').addEventListener('click', ()=>{
+  abrirPickClientes((c)=>{ ovtransDeId=c.id; document.getElementById('ovtrans-de-txt').textContent = c.nombre; });
+});
+document.getElementById('ovtrans-a-sel').addEventListener('click', ()=>{
+  abrirPickClientes((c)=>{ ovtransAId=c.id; document.getElementById('ovtrans-a-txt').textContent = c.nombre; });
+});
+document.getElementById('btn-transferir-guardar').addEventListener('click', ()=>{
+  const cantidad = parseFloat(document.getElementById('ovtrans-cantidad').value) || 0;
+  if(cantidad<=0){ alert('Captura una cantidad válida.'); return; }
+  if(!ovtransDeId || !ovtransAId){ alert('Selecciona ambas cuentas.'); return; }
+  if(ovtransDeId===ovtransAId){ alert('Selecciona cuentas diferentes.'); return; }
+  const fecha = document.getElementById('ovtrans-fecha').value || todayISO();
+  const narracion = document.getElementById('ovtrans-narracion').value.trim() || 'Transferencia entre cuentas';
+  const ts = Date.now();
+  movimientos.push({id:uid(), clienteId:ovtransDeId, tipo:'recibido', monto:cantidad, nota:narracion, evidencia:null, notaCreditoId:null, fecha, hora:nowHM(), ts, fechaVencimiento:null});
+  movimientos.push({id:uid(), clienteId:ovtransAId, tipo:'entrego', monto:cantidad, nota:narracion, evidencia:null, notaCreditoId:null, fecha, hora:nowHM(), ts, fechaVencimiento:null});
+  saveAll();
+  document.getElementById('overlay-transferir').classList.remove('active');
+  renderClientes();
+  alert('Transferencia realizada.');
+});
+
+/* ===================== NOTA DE CREDITO ===================== */
+let notaClienteId = null;
+let notaItems = [];
+let notaCallback = null;
+let notaEditandoId = null;
+
+function abrirOverlayNota(clienteIdPrefill, callback){
+  notaClienteId = clienteIdPrefill || null;
+  notaItems = [];
+  notaCallback = callback || null;
+  notaEditandoId = null;
+  document.getElementById('ovnota-cliente-txt').textContent = (clientes.find(c=>c.id===notaClienteId)||{}).nombre || 'Seleccionar cliente';
+  document.querySelector('input[name=ovnota-tipo][value=venta]').checked = true;
+  document.getElementById('ovnota-fecha').value = todayISO();
+  document.getElementById('ovnota-cargos').value='';
+  document.getElementById('ovnota-descuento').value='';
+  document.getElementById('ovnota-notas').value='';
+  renderNotaItems();
+  document.getElementById('overlay-nota').classList.add('active');
+}
+document.getElementById('cli-btn-nota').addEventListener('click', ()=> abrirOverlayNota(clienteActivoId, null));
+document.getElementById('ovnota-back').addEventListener('click', ()=>{
+  document.getElementById('overlay-nota').classList.remove('active');
+});
+document.getElementById('ovnota-cliente-sel').addEventListener('click', ()=>{
+  abrirPickClientes((c)=>{ notaClienteId=c.id; document.getElementById('ovnota-cliente-txt').textContent = c.nombre; });
+});
+
+function renderNotaItems(){
+  const cont = document.getElementById('ovnota-items');
+  if(notaItems.length===0){ cont.innerHTML=''; } else {
+    cont.innerHTML = notaItems.map((it,idx)=>`<div class="item-nota">
+      <span class="d">${it.nombre} · ${it.cantidad} × ${money(it.precio)}</span>
+      <span><span class="t">${money(it.cantidad*it.precio)}</span> <span style="color:var(--rojo);cursor:pointer;margin-left:8px;" data-idx="${idx}" class="item-del">✕</span></span>
+    </div>`).join('');
+    cont.querySelectorAll('.item-del').forEach(el=>{
+      el.addEventListener('click', ()=>{ notaItems.splice(parseInt(el.dataset.idx),1); renderNotaItems(); recalcNotaTotal(); });
+    });
+  }
+  recalcNotaTotal();
+}
+function recalcNotaTotal(){
+  const subtotal = notaItems.reduce((a,it)=>a+it.cantidad*it.precio,0);
+  const cargos = parseFloat(document.getElementById('ovnota-cargos').value)||0;
+  const desc = parseFloat(document.getElementById('ovnota-descuento').value)||0;
+  const total = subtotal + cargos - desc;
+  document.getElementById('ovnota-total').textContent = money(total);
+  return total;
+}
+document.getElementById('ovnota-cargos').addEventListener('input', recalcNotaTotal);
+document.getElementById('ovnota-descuento').addEventListener('input', recalcNotaTotal);
+
+document.getElementById('btn-ovnota-add-item').addEventListener('click', ()=>{
+  document.getElementById('modal-item-art-txt').textContent = 'Seleccionar artículo';
+  document.getElementById('modal-item-cantidad').value = '1';
+  document.getElementById('modal-item-precio').value = '';
+  modalItemArticuloId = null;
+  document.getElementById('modal-item-nota').classList.add('active');
+});
+let modalItemArticuloId = null;
+document.getElementById('modal-item-art-sel').addEventListener('click', ()=>{
+  pickCallback = (obj)=>{};
+  document.getElementById('modal-pick-titulo').textContent = 'Seleccionar artículo';
+  const items = articulos.map(a=>({id:a.id,label:a.nombre,sub:money(a.precio)}));
+  renderModalPickListaArticulos(items);
+  document.getElementById('modal-pick-nuevo').style.display='none';
+  document.getElementById('modal-pick-buscar').value='';
+  document.getElementById('modal-pick').classList.add('active');
+});
+function renderModalPickListaArticulos(items){
+  const cont = document.getElementById('modal-pick-lista');
+  if(items.length===0){ cont.innerHTML = '<div class="empty-msg">Sin artículos en el catálogo.<br>Agrégalos primero en "Catálogo".</div>'; return; }
+  cont.innerHTML = items.map(it=>`<div class="pick-row" data-id="${it.id}"><span>${it.label}</span><span class="sub">${it.sub||''}</span></div>`).join('');
+  cont.querySelectorAll('.pick-row').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const art = articulos.find(a=>a.id===row.dataset.id);
+      document.getElementById('modal-pick').classList.remove('active');
+      if(art){
+        modalItemArticuloId = art.id;
+        document.getElementById('modal-item-art-txt').textContent = art.nombre;
+        document.getElementById('modal-item-precio').value = art.precio;
+      }
+    });
+  });
+}
+document.getElementById('btn-item-cancelar').addEventListener('click', ()=>{
+  document.getElementById('modal-item-nota').classList.remove('active');
+});
+document.getElementById('btn-item-anadir').addEventListener('click', ()=>{
+  const cantidad = parseFloat(document.getElementById('modal-item-cantidad').value) || 0;
+  const precio = parseFloat(document.getElementById('modal-item-precio').value) || 0;
+  const nombreArt = modalItemArticuloId ? (articulos.find(a=>a.id===modalItemArticuloId)||{}).nombre : document.getElementById('modal-item-art-txt').textContent;
+  if(cantidad<=0 || precio<0 || nombreArt==='Seleccionar artículo'){ alert('Selecciona artículo y cantidad válida.'); return; }
+  notaItems.push({nombre:nombreArt, cantidad, precio});
+  document.getElementById('modal-item-nota').classList.remove('active');
+  renderNotaItems();
+});
+
+document.getElementById('btn-nota-guardar').addEventListener('click', ()=>{
+  guardarNota(false);
+});
+document.getElementById('btn-nota-pdf').addEventListener('click', ()=>{
+  guardarNota(true);
+});
+function guardarNota(generarPdf){
+  if(!notaClienteId){ alert('Selecciona un cliente/proveedor.'); return; }
+  if(notaItems.length===0){ alert('Añade al menos un artículo.'); return; }
+  const tipo = document.querySelector('input[name=ovnota-tipo]:checked').value;
+  const fecha = document.getElementById('ovnota-fecha').value || todayISO();
+  const cargos = parseFloat(document.getElementById('ovnota-cargos').value)||0;
+  const descuento = parseFloat(document.getElementById('ovnota-descuento').value)||0;
+  const notasTxt = document.getElementById('ovnota-notas').value.trim();
+  const total = recalcNotaTotal();
+  const numero = notasCredito.length + 1;
+  const nota = {id:uid(), numero, clienteId:notaClienteId, tipo, fecha, items:[...notaItems], cargos, descuento, total, notas:notasTxt};
+  notasCredito.push(nota);
+  saveAll();
+  document.getElementById('overlay-nota').classList.remove('active');
+  if(generarPdf) generarPdfNota(nota);
+  if(notaCallback) notaCallback(nota);
+  renderClientes();
+}
+
+function generarPdfNota(nota){
+  if(!window.jspdf){ alert('No se pudo cargar el generador de PDF. Revisa tu conexión a internet.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const cliente = clientes.find(c=>c.id===nota.clienteId);
+  doc.setFontSize(16); doc.text('Nota de Crédito #'+nota.numero, 14, 18);
+  doc.setFontSize(11);
+  doc.text('Cliente: '+(cliente?cliente.nombre:''), 14, 28);
+  doc.text('Fecha: '+fmtDate(nota.fecha), 14, 34);
+  doc.text('Tipo: '+(nota.tipo==='venta'?'Venta a crédito':'Compra a crédito'), 14, 40);
+  let y = 52;
+  doc.setFontSize(10);
+  doc.text('Artículo', 14, y); doc.text('Cant.', 110, y); doc.text('Precio', 135, y); doc.text('Total', 170, y);
+  y += 6; doc.line(14,y-3,196,y-3);
+  nota.items.forEach(it=>{
+    doc.text(String(it.nombre).slice(0,40), 14, y);
+    doc.text(String(it.cantidad), 110, y);
+    doc.text(money(it.precio), 135, y);
+    doc.text(money(it.cantidad*it.precio), 170, y);
+    y += 7;
+  });
+  y += 4; doc.line(14,y-5,196,y-5);
+  if(nota.cargos){ doc.text('Cargos adicionales: '+money(nota.cargos), 120, y); y+=7; }
+  if(nota.descuento){ doc.text('Descuento/Pago: -'+money(nota.descuento), 120, y); y+=7; }
+  doc.setFontSize(13);
+  doc.text('Total: '+money(nota.total), 120, y+4);
+  if(nota.notas){ doc.setFontSize(10); doc.text('Notas: '+nota.notas, 14, y+16); }
+
+  const blob = doc.output('blob');
+  const url = URL.createObjectURL(blob);
+  const nombreArchivo = 'nota_credito_'+nota.numero+'.pdf';
+
+  if(navigator.canShare && navigator.canShare({files:[new File([blob], nombreArchivo, {type:'application/pdf'})]})){
+    const file = new File([blob], nombreArchivo, {type:'application/pdf'});
+    navigator.share({files:[file], title:'Nota de crédito #'+nota.numero}).catch(()=>{});
+  } else {
+    const a = document.createElement('a');
+    a.href = url; a.download = nombreArchivo; a.click();
+  }
+}
+
+/* ===================== TRANSACCIONES GLOBAL ===================== */
+let txFiltroFecha = 'todo';
+let txOffset = 0;
+function abrirOverlayTransacciones(){
+  document.getElementById('ovtx-buscar').value='';
+  txFiltroFecha='todo'; txOffset=0;
+  document.querySelectorAll('#ovtx-filtros .chip').forEach(c=>{
+    c.style.background = c.dataset.f==='todo' ? 'var(--azul)' : '#eee';
+    c.style.color = c.dataset.f==='todo' ? '#fff' : '#444';
+  });
+  renderTransacciones();
+  document.getElementById('overlay-transacciones').style.display='flex';
+}
+document.getElementById('ovtx-back').addEventListener('click', ()=>{
+  document.getElementById('overlay-transacciones').style.display='none';
+});
+document.getElementById('ovtx-buscar').addEventListener('input', renderTransacciones);
+document.querySelectorAll('#ovtx-filtros .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    txFiltroFecha = chip.dataset.f; txOffset=0;
+    document.querySelectorAll('#ovtx-filtros .chip').forEach(c=>{
+      c.style.background = c===chip ? 'var(--azul)' : '#eee';
+      c.style.color = c===chip ? '#fff' : '#444';
+    });
+    renderTransacciones();
+  });
+});
+function getRango(filtro, offset){
+  const base = new Date();
+  base.setDate(base.getDate());
+  let ini, fin;
+  if(filtro==='diario'){
+    ini = new Date(base); ini.setDate(ini.getDate()+offset);
+    fin = new Date(ini);
+  } else if(filtro==='semanal'){
+    ini = new Date(base); const day = ini.getDay(); ini.setDate(ini.getDate()-day+(offset*7));
+    fin = new Date(ini); fin.setDate(fin.getDate()+6);
+  } else if(filtro==='mensual'){
+    ini = new Date(base.getFullYear(), base.getMonth()+offset, 1);
+    fin = new Date(base.getFullYear(), base.getMonth()+offset+1, 0);
+  } else { return null; }
+  ini.setHours(0,0,0,0); fin.setHours(23,59,59,999);
+  return {ini:ini.getTime(), fin:fin.getTime()};
+}
+function renderTransacciones(){
+  const q = document.getElementById('ovtx-buscar').value.trim().toLowerCase();
+  let lista = [...movimientos];
+  if(txFiltroFecha!=='todo'){
+    const r = getRango(txFiltroFecha, txOffset);
+    if(r) lista = lista.filter(m=>m.ts>=r.ini && m.ts<=r.fin);
+  }
+  if(q){
+    lista = lista.filter(m=>{
+      const cliente = clientes.find(c=>c.id===m.clienteId);
+      return (m.nota||'').toLowerCase().includes(q) || (cliente && cliente.nombre.toLowerCase().includes(q));
+    });
+  }
+  lista.sort((a,b)=>b.ts-a.ts);
+  const cont = document.getElementById('ovtx-lista');
+  if(lista.length===0){ cont.innerHTML = '<div class="empty-msg">Sin transacciones en este periodo.</div>'; }
+  else { cont.innerHTML = lista.map(m=>movItemHtml(m, true)).join(''); wireMovItemActionsGlobal(cont); }
+
+  const recibido = lista.filter(m=>m.tipo==='recibido').reduce((a,m)=>a+m.monto,0);
+  const entregado = lista.filter(m=>m.tipo==='entrego').reduce((a,m)=>a+m.monto,0);
+  document.getElementById('ovtx-sum-recibido').textContent = money(recibido);
+  document.getElementById('ovtx-sum-entregado').textContent = money(entregado);
+  document.getElementById('ovtx-sum-saldo').textContent = money(recibido-entregado);
+}
+function wireMovItemActionsGlobal(cont){
+  cont.querySelectorAll('.mi-del').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if(confirm('¿Eliminar este movimiento?')){
+        movimientos = movimientos.filter(m=>m.id!==el.dataset.id);
+        saveAll();
+        renderTransacciones();
+        renderClientes();
+      }
+    });
+  });
+}
+document.getElementById('ovtx-print').addEventListener('click', ()=>{
+  const area = document.getElementById('print-area');
+  const rows = movimientos.slice().sort((a,b)=>b.ts-a.ts).map(m=>{
+    const cliente = clientes.find(c=>c.id===m.clienteId);
+    return `<tr><td>${fmtDate(m.fecha)} ${m.hora||''}</td><td>${cliente?cliente.nombre:''}</td>
+      <td style="color:green;">${m.tipo==='recibido'?money(m.monto):''}</td>
+      <td style="color:red;">${m.tipo==='entrego'?money(m.monto):''}</td>
+      <td>${m.nota||''}</td></tr>`;
+  }).join('');
+  area.innerHTML = `<h2>Libreta de Fiado - Transacciones</h2>
+    <table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;">
+      <tr><th>Fecha</th><th>Cliente</th><th>Recibido</th><th>Entregó</th><th>Nota</th></tr>${rows}
+    </table>`;
+  window.print();
+});
+document.getElementById('ovtx-share').addEventListener('click', ()=>{
+  let txt = 'Libreta de Fiado - Resumen de transacciones\n\n';
+  movimientos.slice().sort((a,b)=>b.ts-a.ts).slice(0,30).forEach(m=>{
+    const cliente = clientes.find(c=>c.id===m.clienteId);
+    txt += `${fmtDate(m.fecha)} - ${cliente?cliente.nombre:''} - ${m.tipo==='recibido'?'Recibido':'Entregó'}: ${money(m.monto)}\n`;
+  });
+  window.open('https://wa.me/?text='+encodeURIComponent(txt), '_blank');
+});
+
+/* ===================== RECORDATORIOS ===================== */
+const FRECUENCIA_COLOR = { una_vez:'#2e7d32', diario:'#1565c0', semanal:'#ef6c00', mensual:'#f9a825', trimestral:'#8e24aa', anual:'#ad1457' };
+const FRECUENCIA_LABEL = { una_vez:'Una vez', diario:'Diario', semanal:'Semanal', mensual:'Mensual', trimestral:'Trimestral', anual:'Anual' };
+function calcularProximaFecha(fechaISO, frecuencia){
+  const d = new Date(fechaISO+'T12:00:00');
+  if(frecuencia==='diario') d.setDate(d.getDate()+1);
+  else if(frecuencia==='semanal') d.setDate(d.getDate()+7);
+  else if(frecuencia==='mensual') d.setMonth(d.getMonth()+1);
+  else if(frecuencia==='trimestral') d.setMonth(d.getMonth()+3);
+  else if(frecuencia==='anual') d.setFullYear(d.getFullYear()+1);
+  const tz = d.getTimezoneOffset();
+  const local = new Date(d.getTime()-tz*60000);
+  return local.toISOString().slice(0,10);
+}
+let recTabActivo = 'hoy';
+let recClienteSelId = null;
+function abrirOverlayRecordatorios(){
+  recTabActivo = 'hoy';
+  document.querySelectorAll('#rec-tabs button').forEach(b=>b.classList.remove('active'));
+  document.querySelector('#rec-tabs button[data-t="hoy"]').classList.add('active');
+  document.getElementById('rec-nombre').value='';
+  document.getElementById('rec-cantidad').value='';
+  document.getElementById('rec-fecha').value = todayISO();
+  recClienteSelId = null;
+  document.getElementById('rec-cliente-txt').textContent = 'Seleccionar cliente (opcional)';
+  renderRecordatorios();
+  document.getElementById('overlay-recordatorios').classList.add('active');
+}
+document.getElementById('btn-recordatorios').addEventListener('click', abrirOverlayRecordatorios);
+document.getElementById('ovr-back').addEventListener('click', ()=>{
+  document.getElementById('overlay-recordatorios').classList.remove('active');
+});
+document.getElementById('rec-cliente-sel').addEventListener('click', ()=>{
+  abrirPickClientes((c)=>{ recClienteSelId=c.id; document.getElementById('rec-cliente-txt').textContent = c.nombre; });
+});
+document.querySelectorAll('#rec-tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#rec-tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    recTabActivo = btn.dataset.t;
+    renderRecordatorios();
+  });
+});
+function renderRecordatorios(){
+  const hoyStr = todayISO();
+  let lista = [...recordatorios].sort((a,b)=> a.proximaFecha < b.proximaFecha ? -1 : 1);
+  if(recTabActivo==='hoy') lista = lista.filter(r=>r.proximaFecha <= hoyStr);
+  const cont = document.getElementById('rec-lista');
+  if(lista.length===0){ cont.innerHTML = '<div class="empty-msg">Sin recordatorios pendientes.</div>'; }
+  else {
+    cont.innerHTML = lista.map(r=>{
+      const cliente = r.clienteId ? clientes.find(c=>c.id===r.clienteId) : null;
+      const color = FRECUENCIA_COLOR[r.frecuencia] || '#999';
+      const vencido = r.proximaFecha < hoyStr;
+      return `<div class="rec-item" style="border-left-color:${color};">
+        <div class="ri-top"><span class="ri-name">${r.nombre}</span><span class="ri-freq">${FRECUENCIA_LABEL[r.frecuencia]}</span></div>
+        <div class="ri-mid"><span>${cliente?('👤 '+cliente.nombre+' · '):''}${r.proximaFecha}${vencido?' (vencido)':''}</span>
+        <span style="color:${r.tipo==='recibido'?'var(--verde)':'var(--rojo)'};font-weight:700;">${r.tipo==='recibido'?'+':'-'}${money(r.cantidad)}</span></div>
+        <div class="ri-btns"><button data-id="${r.id}" class="ri-registrar" style="background:var(--verde);">✓ Registrar</button>
+        <button data-id="${r.id}" class="ri-eliminar" style="background:var(--rojo);">🗑 Eliminar</button></div>
+      </div>`;
+    }).join('');
+    cont.querySelectorAll('.ri-registrar').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const rec = recordatorios.find(r=>r.id===btn.dataset.id);
+        if(!rec) return;
+        if(rec.clienteId){
+          movimientos.push({id:uid(), clienteId:rec.clienteId, tipo:rec.tipo, monto:rec.cantidad, nota:'Recordatorio: '+rec.nombre, evidencia:null, notaCreditoId:null, fecha:todayISO(), hora:nowHM(), ts:Date.now(), fechaVencimiento:null});
+        }
+        if(rec.frecuencia==='una_vez') recordatorios = recordatorios.filter(r=>r.id!==rec.id);
+        else rec.proximaFecha = calcularProximaFecha(rec.proximaFecha, rec.frecuencia);
+        saveAll(); renderRecordatorios(); renderClientes();
+      });
+    });
+    cont.querySelectorAll('.ri-eliminar').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        if(confirm('¿Eliminar este recordatorio?')){
+          recordatorios = recordatorios.filter(r=>r.id!==btn.dataset.id);
+          saveAll(); renderRecordatorios();
+        }
+      });
+    });
+  }
+}
+function actualizarBadgeRecordatorios(){
+  const hoyStr = todayISO();
+  const hay = recordatorios.some(r=>r.proximaFecha <= hoyStr);
+  document.getElementById('badge-recordatorios').style.display = hay ? 'block' : 'none';
+}
+document.getElementById('btn-add-recordatorio').addEventListener('click', ()=>{
+  const nombre = document.getElementById('rec-nombre').value.trim();
+  const cantidad = parseFloat(document.getElementById('rec-cantidad').value);
+  const fecha = document.getElementById('rec-fecha').value || todayISO();
+  const tipo = document.querySelector('input[name=rec-tipo]:checked').value;
+  const frecuencia = document.getElementById('rec-frecuencia').value;
+  if(!nombre || !cantidad || cantidad<=0){ alert('Captura nombre y cantidad válidos.'); return; }
+  recordatorios.push({id:uid(), nombre, tipo, cantidad, clienteId:recClienteSelId, frecuencia, proximaFecha:fecha});
+  saveAll();
+  document.getElementById('rec-nombre').value='';
+  document.getElementById('rec-cantidad').value='';
+  renderRecordatorios();
+});
+
+/* Cerrar modal-pick al tocar fondo */
+document.getElementById('modal-pick').addEventListener('click', (e)=>{
+  if(e.target.id==='modal-pick') e.currentTarget.classList.remove('active');
+});
+document.getElementById('modal-desglose').addEventListener('click', (e)=>{
+  if(e.target.id==='modal-desglose') e.currentTarget.classList.remove('active');
+});
+document.getElementById('modal-item-nota').addEventListener('click', (e)=>{
+  if(e.target.id==='modal-item-nota') e.currentTarget.classList.remove('active');
+});
+
+/* ===================== INIT ===================== */
+renderClientes();
+actualizarBadgeRecordatorios();
+
+/* ===================== PWA SW ===================== */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
+
+</body></html>
